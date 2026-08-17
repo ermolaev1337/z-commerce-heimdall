@@ -1,14 +1,26 @@
 FROM node:20
 
-RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y
+# Everything below is pinned on purpose. The proving stack — circom, circomlib and
+# snarkjs — has to stay fixed: a newer compiler or a changed proof format would not
+# break the build, it would silently stop matching the .zkey files in this repository.
+ARG RUST_VERSION=1.97.1
+# circom v2.2.3 plus 9 commits — the exact revision this project was verified against
+ARG CIRCOM_REV=a100faedb1c62d4d3e1463f8a3f88342d82351cd
+# circomlib v2.0.5 plus 9 commits
+ARG CIRCOMLIB_REV=35e54ea21da3e8762557234298dbb553c175ea8d
+ARG SNARKJS_VERSION=0.7.6
+
+RUN curl --proto '=https' --tlsv1.2 https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain ${RUST_VERSION}
 RUN /bin/bash -c 'source "$HOME/.cargo/env"'
-RUN git clone https://github.com/iden3/circom.git /app/installation/circom
+RUN git clone https://github.com/iden3/circom.git /app/installation/circom \
+ && git -C /app/installation/circom checkout --quiet ${CIRCOM_REV}
 RUN /root/.cargo/bin/cargo build --release --manifest-path /app/installation/circom/Cargo.toml
 RUN /root/.cargo/bin/cargo install --path /app/installation/circom/circom
 
 #TODO: get rid of the redundant "circom" pfolder in the "installation" folder (above)
-RUN git clone https://github.com/iden3/circomlib.git /app/circom/lib/circomlib
-RUN npm install -g snarkjs@latest
+RUN git clone https://github.com/iden3/circomlib.git /app/circom/lib/circomlib \
+ && git -C /app/circom/lib/circomlib checkout --quiet ${CIRCOMLIB_REV}
+RUN npm install -g snarkjs@${SNARKJS_VERSION}
 
 COPY ./heimdalljs/package.json ./heimdalljs/package-lock.json /app/heimdalljs/
 WORKDIR /app/heimdalljs
@@ -20,7 +32,7 @@ RUN apt upgrade -y
 RUN apt install golang-go -y
 ENV GO111MODULE=on
 
-RUN go install github.com/msoap/shell2http@latest
+RUN go install github.com/msoap/shell2http@v1.17.0
 RUN mkdir -p ~/bin/
 RUN ln -s $(go env GOPATH)/bin/shell2http ~/bin/shell2http
 ENV PATH=$PATH:/root/go/bin/
