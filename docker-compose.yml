@@ -1,5 +1,8 @@
+# Five instances of the same Heimdall image, one per role in the credential exchange.
+# They differ only by published port and by which files the bootstrap uploads into them.
 services:
 
+  # Certificate authority: the root of trust, issues the issuer's own credential.
   heimdall-ca: &heimdall
     container_name: heimdall-ca
     build: .
@@ -20,6 +23,7 @@ services:
     networks:
       - heimdall-network
 
+  # Issues the customer's credential, holding the attributes to be proven later.
   heimdall-issuer:
     <<: *heimdall
     container_name: heimdall-issuer
@@ -30,6 +34,7 @@ services:
     networks:
       - heimdall-network
 
+  # The customer's side: keeps the credential and builds proofs from it.
   heimdall-holder:
     <<: *heimdall
     container_name: heimdall-holder
@@ -40,6 +45,7 @@ services:
     networks:
       - heimdall-network
 
+  # The shop's verifier: checks proofs against the issuer's public key.
   heimdall-verifier:
     <<: *heimdall
     container_name: heimdall-verifier
@@ -50,6 +56,7 @@ services:
     networks:
       - heimdall-network
 
+  # The delivery service's own verifier, so it does not have to trust the shop's result.
   heimdall-verifier-delivery:
     <<: *heimdall
     container_name: heimdall-verifier-delivery
@@ -58,6 +65,9 @@ services:
     networks:
       - heimdall-network
 
+  # One-shot job that wires the demo together once every instance is up: generates the
+  # keys, has the CA certify the issuer, issues the customer's credential, and uploads
+  # the issuer's public key into both verifiers. Exits when done.
   bootstrap:
     container_name: bootstrap
     build:
