@@ -126,5 +126,4 @@ dist
 
 #MAC OS
 .DS_Store
-/heimdalljs/package-lock.json
 /circom/lib/test.*
